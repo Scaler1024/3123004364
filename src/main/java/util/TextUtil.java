@@ -1,4 +1,5 @@
 package util;
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -6,87 +7,135 @@ import java.util.*;
  */
 public class TextUtil {
 
-    // 计算基于编辑距离的相似度[1,7,10](@ref)
-    public static double calculateEditDistanceSimilarity(String text1, String text2) {
-        int editDistance = computeEditDistance(text1, text2);
-        int maxLength = Math.max(text1.length(), text2.length());
+    // 内存受限的流式相似度计算
+    public static double calculateStreamingSimilarityWithMemoryLimit(
+            String filePath1, String filePath2, int chunkSize) throws IOException {
 
-        if (maxLength == 0) {
-            return 1.0;
-        }
+        long totalSize1 = FileUtil.getFileSize(filePath1);
+        long totalSize2 = FileUtil.getFileSize(filePath2);
+        long maxTotalSize = Math.max(totalSize1, totalSize2);
 
-        return 1.0 - (double) editDistance / maxLength;
-    }
+        if (maxTotalSize == 0) return 1.0;
 
-    // 计算编辑距离（Levenshtein距离）[1,7](@ref)
-    private static int computeEditDistance(String s1, String s2) {
-        int m = s1.length();
-        int n = s2.length();
-        int[][] dp = new int[m + 1][n + 1];
+        List<Double> chunkSimilarities = new ArrayList<>();
+        long processedBytes = 0;
+        int batchSize = calculateBatchSize(chunkSize);
 
-        // 初始化边界条件
-        for (int i = 0; i <= m; i++) {
-            dp[i][0] = i;
-        }
-        for (int j = 0; j <= n; j++) {
-            dp[0][j] = j;
-        }
+        System.out.print("处理进度: ");
 
-        // 动态规划计算编辑距离
-        for (int i = 1; i <= m; i++) {
-            for (int j = 1; j <= n; j++) {
-                if (s1.charAt(i - 1) == s2.charAt(j - 1)) {
-                    dp[i][j] = dp[i - 1][j - 1];
-                } else {
-                    dp[i][j] = Math.min(Math.min(
-                                    dp[i - 1][j] + 1,     // 删除
-                                    dp[i][j - 1] + 1),    // 插入
-                                    dp[i - 1][j - 1] + 1  // 替换
-                    );
+        while (processedBytes < maxTotalSize) {
+            // 批量处理多个块，减少IO开销
+            int chunksToProcess = (int) Math.min(
+                    batchSize,
+                    (maxTotalSize - processedBytes + chunkSize - 1) / chunkSize
+            );
+
+            long[] offsets1 = new long[chunksToProcess];
+            long[] offsets2 = new long[chunksToProcess];
+            for (int i = 0; i < chunksToProcess; i++) {
+                offsets1[i] = Math.min(processedBytes + i * chunkSize, totalSize1);
+                offsets2[i] = Math.min(processedBytes + i * chunkSize, totalSize2);
+            }
+
+            // 批量读取
+            String[] chunks1 = FileUtil.readMultipleChunks(filePath1, offsets1, chunkSize);
+            String[] chunks2 = FileUtil.readMultipleChunks(filePath2, offsets2, chunkSize);
+
+            // 批量计算相似度
+            for (int i = 0; i < chunksToProcess; i++) {
+                if (chunks1[i].isEmpty() && chunks2[i].isEmpty()) {
+                    continue;
                 }
+
+                double similarity = calculateEditDistanceSimilarity(chunks1[i], chunks2[i]);
+                chunkSimilarities.add(similarity);
+            }
+
+            processedBytes += chunksToProcess * chunkSize;
+
+            // 显示进度
+            int progress = (int) ((double) processedBytes / maxTotalSize * 100);
+            System.out.print(progress + "% ");
+
+            // 定期清理内存
+            if (chunkSimilarities.size() > 1000) {
+                System.gc(); // 建议垃圾回收
             }
         }
 
-        return dp[m][n];
+        System.out.println();
+
+        // 计算加权平均（考虑块大小）
+        return calculateWeightedAverage(chunkSimilarities);
     }
 
-//    private static int computeEditDistance(String s1, String s2) {
-//        int m = s1.length();
-//        int n = s2.length();
-//
-//        // 优化：使用两行数组代替完整的二维矩阵
-//        int[] prev = new int[n + 1];
-//        int[] curr = new int[n + 1];
-//
-//        // 初始化第一行（空字符串到s2的编辑距离）
-//        for (int j = 0; j <= n; j++) {
-//            prev[j] = j;
-//        }
-//
-//        // 动态规划计算编辑距离
-//        for (int i = 1; i <= m; i++) {
-//            // 每行开始时，初始化当前行的第一个元素
-//            curr[0] = i;
-//
-//            for (int j = 1; j <= n; j++) {
-//                if (s1.charAt(i - 1) == s2.charAt(j - 1)) {
-//                    curr[j] = prev[j - 1];  // 字符相同，继承左上角值
-//                } else {
-//                    curr[j] = Math.min(Math.min(
-//                                    prev[j] + 1,     // 删除（来自上一行）
-//                                    curr[j - 1] + 1),    // 插入（来自左边）
-//                            prev[j - 1] + 1  // 替换（来自左上角）
-//                    );
-//                }
-//            }
-//
-//            // 交换数组引用，准备下一轮计算
-//            int[] temp = prev;
-//            prev = curr;
-//            curr = temp;
-//        }
-//
-//        // 最终结果在prev数组中（因为最后交换了一次）
-//        return prev[n];
-//    }
+    // 计算批量处理大小（基于内存限制）
+    private static int calculateBatchSize(int chunkSize) {
+        long availableMemory = 2048L * 1024 * 1024 - getCurrentMemoryUsage();
+        // 每个块需要：2个字符串内存 + 算法内存
+        long memoryPerChunk = chunkSize * 2 * 2 + chunkSize * chunkSize / 10;
+        int maxBatch = (int) (availableMemory / memoryPerChunk);
+
+        return Math.max(1, Math.min(maxBatch, 100)); // 限制在1-100之间
+    }
+
+    // 获取当前内存使用
+    private static long getCurrentMemoryUsage() {
+        Runtime runtime = Runtime.getRuntime();
+        return runtime.totalMemory() - runtime.freeMemory();
+    }
+
+    // 计算加权平均值
+    private static double calculateWeightedAverage(List<Double> similarities) {
+        if (similarities.isEmpty()) {
+            return 0.0;
+        }
+
+        double sum = 0;
+        for (double sim : similarities) {
+            sum += sim;
+        }
+        return sum / similarities.size();
+    }
+
+    // 原有的编辑距离计算（已优化）
+    public static double calculateEditDistanceSimilarity(String text1, String text2) {
+        if (text1.isEmpty() && text2.isEmpty()) return 1.0;
+
+        int editDistance = computeEditDistanceOptimized(text1, text2);
+        int maxLength = Math.max(text1.length(), text2.length());
+        return 1.0 - (double) editDistance / maxLength;
+    }
+
+    // 空间优化的编辑距离计算
+    private static int computeEditDistanceOptimized(String s1, String s2) {
+        int m = s1.length();
+        int n = s2.length();
+
+        if (m == 0) return n;
+        if (n == 0) return m;
+
+        // 使用单数组进一步节省空间
+        int[] dp = new int[n + 1];
+        for (int j = 0; j <= n; j++) {
+            dp[j] = j;
+        }
+
+        for (int i = 1; i <= m; i++) {
+            int prev = dp[0];
+            dp[0] = i;
+
+            for (int j = 1; j <= n; j++) {
+                int temp = dp[j];
+                if (s1.charAt(i - 1) == s2.charAt(j - 1)) {
+                    dp[j] = prev;
+                } else {
+                    dp[j] = Math.min(Math.min(dp[j] + 1, dp[j - 1] + 1), prev + 1);
+                }
+                prev = temp;
+            }
+        }
+
+        return dp[n];
+    }
 }
