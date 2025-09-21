@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.pgl</groupId>
-    <artifactId>paperCheck</artifactId>
+    <artifactId>main</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>paperCheck</name>
+    <name>main</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

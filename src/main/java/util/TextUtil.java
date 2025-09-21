@@ -1,6 +1,9 @@
 package util;
 import java.util.*;
 
+/**
+ * 文本处理
+ */
 public class TextUtil {
 
     // 计算基于编辑距离的相似度[1,7,10](@ref)
