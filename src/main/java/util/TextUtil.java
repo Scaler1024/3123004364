@@ -41,7 +41,7 @@ public class TextUtil {
                     dp[i][j] = Math.min(Math.min(
                                     dp[i - 1][j] + 1,     // 删除
                                     dp[i][j - 1] + 1),    // 插入
-                            dp[i - 1][j - 1] + 1  // 替换
+                                    dp[i - 1][j - 1] + 1  // 替换
                     );
                 }
             }
