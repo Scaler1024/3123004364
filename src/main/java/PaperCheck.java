@@ -63,7 +63,7 @@ public class PaperCheck {
     }
 
     // 计算安全块大小
-    private static int calculateSafeChunkSize(long maxFileSize, int customChunkSize) {
+    static int calculateSafeChunkSize(long maxFileSize, int customChunkSize) {
         if (customChunkSize > 0) {
             return Math.min(customChunkSize, (int) (MAX_MEMORY_BYTES / 4));
         }

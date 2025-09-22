@@ -70,7 +70,7 @@ public class TextUtil {
     }
 
     // 计算批量处理大小（基于内存限制）
-    private static int calculateBatchSize(int chunkSize) {
+    public static int calculateBatchSize(int chunkSize) {
         long availableMemory = 2048L * 1024 * 1024 - getCurrentMemoryUsage();
         // 每个块需要：2个字符串内存 + 算法内存
         long memoryPerChunk = chunkSize * 2 * 2 + chunkSize * chunkSize / 10;
@@ -80,13 +80,13 @@ public class TextUtil {
     }
 
     // 获取当前内存使用
-    private static long getCurrentMemoryUsage() {
+    public static long getCurrentMemoryUsage() {
         Runtime runtime = Runtime.getRuntime();
         return runtime.totalMemory() - runtime.freeMemory();
     }
 
     // 计算加权平均值
-    private static double calculateWeightedAverage(List<Double> similarities) {
+    public static double calculateWeightedAverage(List<Double> similarities) {
         if (similarities.isEmpty()) {
             return 0.0;
         }
@@ -108,7 +108,7 @@ public class TextUtil {
     }
 
     // 空间优化的编辑距离计算
-    private static int computeEditDistanceOptimized(String s1, String s2) {
+    public static int computeEditDistanceOptimized(String s1, String s2) {
         int m = s1.length();
         int n = s2.length();
 
