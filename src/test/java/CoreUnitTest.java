@@ -1,4 +1,4 @@
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 import org.junit.jupiter.api.io.TempDir;
 import util.FileUtil;
 import util.TextUtil;
@@ -18,7 +18,7 @@ public class CoreUnitTest {
 
     // 测试1: 编辑距离计算（核心算法）
     @Test
-    void testComputeEditDistanceOptimized() {
+    public void testComputeEditDistanceOptimized() {
         // 相同字符串
         assertEquals(0, TextUtil.computeEditDistanceOptimized("hello", "hello"));
 
@@ -38,7 +38,7 @@ public class CoreUnitTest {
 
     // 测试2: 相似度计算
     @Test
-    void testCalculateEditDistanceSimilarity() {
+    public void testCalculateEditDistanceSimilarity() {
         // 完全相同
         assertEquals(1.0, TextUtil.calculateEditDistanceSimilarity("same", "same"), 0.001);
 
@@ -58,7 +58,7 @@ public class CoreUnitTest {
 
     // 测试3: 文件读取（边界情况）
     @Test
-    void testReadChunkEfficiently() throws IOException {
+    public void testReadChunkEfficiently() throws IOException {
         Path testFile = tempDir.resolve("test.txt");
         Files.write(testFile, "Hello World!".getBytes());
 
@@ -82,7 +82,7 @@ public class CoreUnitTest {
 
     // 测试4: 批量读取多个块
     @Test
-    void testReadMultipleChunks() throws IOException {
+    public void testReadMultipleChunks() throws IOException {
         Path testFile = tempDir.resolve("multi.txt");
         Files.write(testFile, "This is a test content for multiple chunks".getBytes());
 
@@ -98,7 +98,7 @@ public class CoreUnitTest {
 
     // 测试5: 加权平均计算
     @Test
-    void testCalculateWeightedAverage() {
+    public void testCalculateWeightedAverage() {
         // 正常列表
         List<Double> similarities = Arrays.asList(0.8, 0.9, 0.7);
         assertEquals(0.8, TextUtil.calculateWeightedAverage(similarities), 0.001);
@@ -118,7 +118,7 @@ public class CoreUnitTest {
 
     // 测试6: 安全块大小计算
     @Test
-    void testCalculateSafeChunkSize() {
+    public void testCalculateSafeChunkSize() {
         // 默认计算（无自定义大小）
         int chunkSize1 = PaperCheck.calculateSafeChunkSize(1024 * 1024, 0);
         assertTrue(chunkSize1 >= 256 * 1024 && chunkSize1 <= 16 * 1024 * 1024);
@@ -138,7 +138,7 @@ public class CoreUnitTest {
 
     // 测试7: 文件大小获取（异常情况）
     @Test
-    void testGetFileSizeException() {
+    public void testGetFileSizeException() {
         // 不存在的文件应该抛出异常
         assertThrows(IOException.class, () -> {
             FileUtil.getFileSize("nonexistent_file.txt");
@@ -147,7 +147,7 @@ public class CoreUnitTest {
 
     // 测试8: 文件写入格式
     @Test
-    void testWriteFileFormat() throws IOException {
+    public void testWriteFileFormat() throws IOException {
         Path outputFile = tempDir.resolve("output.txt");
 
         // 测试各种相似度值的格式化输出
@@ -163,4 +163,23 @@ public class CoreUnitTest {
         FileUtil.writeFile(outputFile.toString(), 0.9999);
         assertEquals("99.99", Files.readString(outputFile));
     }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void shouldThrowExceptionWhenArgsLessThan3() {
+        String[] args = {"file1.txt", "file2.txt"};
+        PaperCheck.main(args);
+    }
+
+    @Test(expected = NumberFormatException.class)
+    public void shouldThrowExceptionWhenInvalidChunkSize() {
+        String[] args = {"file1.txt", "file2.txt", "result.txt", "invalid"};
+        PaperCheck.main(args);
+    }
+
+    @Test(expected = IOException.class)
+    public void shouldThrowExceptionWhenFileLocked() throws Exception {
+        // 另一个进程正在写入该文件
+        FileUtil.readChunkEfficiently("locked_file.txt", 0, 1024);
+    }
+
 }
