@@ -10,10 +10,8 @@ public class PaperCheck {
     private static final int DEFAULT_CHUNK_SIZE = 1024 * 1024; // 1MB默认块大小
 
     public static void main(String[] args) {
-        if (args.length < 3) {
-            System.out.println("用法: java PaperCheck 文件1 文件2 结果文件 [自定义块大小]");
-            System.out.println("内存限制: 2048MB");
-            return;
+        if (args.length != 3) {
+            throw new IllegalArgumentException("非法入参！");
         }
 
         String originalFilePath = args[0];

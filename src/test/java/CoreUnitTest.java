@@ -1,4 +1,5 @@
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 import util.FileUtil;
 import util.TextUtil;
@@ -15,6 +16,12 @@ public class CoreUnitTest {
 
     @TempDir
     Path tempDir;
+
+    @BeforeEach
+    public void setupTempDir() {
+        // 设置临时目录的权限等（如果需要）
+        tempDir.toFile().setWritable(true);
+    }
 
     // 测试1: 编辑距离计算（核心算法）
     @Test
@@ -164,22 +171,28 @@ public class CoreUnitTest {
         assertEquals("99.99", Files.readString(outputFile));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void shouldThrowExceptionWhenArgsLessThan3() {
         String[] args = {"file1.txt", "file2.txt"};
-        PaperCheck.main(args);
+        assertThrows(IllegalArgumentException.class, () -> {
+            PaperCheck.main(args);
+        });
     }
 
-    @Test(expected = NumberFormatException.class)
+    @Test
     public void shouldThrowExceptionWhenInvalidChunkSize() {
         String[] args = {"file1.txt", "file2.txt", "result.txt", "invalid"};
-        PaperCheck.main(args);
+        assertThrows(NumberFormatException.class, () -> {
+            PaperCheck.main(args);
+        });
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void shouldThrowExceptionWhenFileLocked() throws Exception {
-        // 另一个进程正在写入该文件
-        FileUtil.readChunkEfficiently("locked_file.txt", 0, 1024);
+        assertThrows(IOException.class, () -> {
+            // 另一个进程正在写入该文件
+            FileUtil.readChunkEfficiently("locked_file.txt", 0, 1024);
+        });
     }
 
 }
